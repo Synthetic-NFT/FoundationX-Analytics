@@ -1,26 +1,51 @@
+// Example usage
+// npx ts-node src/crawler.ts Otherdeed NFTs/Otherdeed.txt
+
 import { BigNumber, ethers } from "ethers";
 
 const fs = require("fs");
 
-const contractAbi = require("./abi/BoredApeYachtClub.json");
-const contractAddress = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
-const outputPath = "NFTs/BoredApeYachtClub.txt";
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 200;
+const N_RETRY = 100;
+const SLEEP_TIME = 10; // s
+
+const contractInfos = new Map<string, [string, string]>([
+  [
+    "BoredApeYachtClub",
+    [
+      require("./abi/BoredApeYachtClub.json"),
+      "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+    ],
+  ],
+  [
+    "MutantApeYachtClub",
+    [
+      require("./abi/MutantApeYachtClub.json"),
+      "0x60E4d786628Fea6478F785A6d7e704777c86a7c6",
+    ],
+  ],
+  [
+    "Otherdeed",
+    [
+      require("./abi/Otherdeed.json"),
+      "0x34d85c9CDeB23FA97cb08333b511ac86E1C4E258",
+    ],
+  ],
+]);
 
 type TokenInfo = {
   tokenId: BigNumber;
   tokenURI: string;
-  owner: string;
+};
+
+const sleep = (s: number) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, s * 1000);
+  });
 };
 
 const tokenInfoToTxt = function (tokenInfo: TokenInfo): string {
-  return (
-    tokenInfo.tokenId.toString() +
-    ", " +
-    tokenInfo.tokenURI +
-    ", " +
-    tokenInfo.owner
-  );
+  return tokenInfo.tokenId.toString() + ", " + tokenInfo.tokenURI;
 };
 
 const tokenInfoByIndex = async (
@@ -29,11 +54,10 @@ const tokenInfoByIndex = async (
 ): Promise<TokenInfo> => {
   const tokenId = await contract.tokenByIndex(index);
   const tokenURI = await contract.tokenURI(tokenId);
-  const owner = await contract.ownerOf(tokenId);
-  return { tokenId: tokenId, tokenURI: tokenURI, owner: owner };
+  return { tokenId: tokenId, tokenURI: tokenURI };
 };
 
-const processing = async (contract: ethers.Contract) => {
+const processing = async (contract: ethers.Contract, outputPath: string) => {
   const totalSupply = await contract.totalSupply();
   console.log("Total supply", totalSupply.toString());
 
@@ -58,7 +82,21 @@ const processing = async (contract: ethers.Contract) => {
       requests.push(tokenInfoByIndex(contract, i));
     }
 
-    const tokenInfos = await Promise.all(requests);
+    let tokenInfos: Array<TokenInfo> = [];
+    for (let retry = 0; retry < N_RETRY; retry++) {
+      try {
+        tokenInfos = await Promise.all(requests);
+        break;
+      } catch (err) {
+        if (retry === N_RETRY - 1) {
+          throw err;
+        } else {
+          await sleep(SLEEP_TIME);
+          console.log("Retrying after sleeping ...");
+        }
+      }
+    }
+
     try {
       fs.appendFileSync(
         outputPath,
@@ -74,8 +112,18 @@ async function main() {
   const provider = ethers.getDefaultProvider(
     "https://eth-mainnet.alchemyapi.io/v2/OcrpQKK0SZ1ym_zDwg1kHUo6Nm3aFKax"
   );
-  const contract = new ethers.Contract(contractAddress, contractAbi, provider);
-  await processing(contract);
+  // @ts-ignore
+  const args = process.argv.slice(2);
+  const token = args[0];
+  const outputPath = args[1];
+  // @ts-ignore
+  const contractInfo: [string, string] = contractInfos.get(token);
+  const contract = new ethers.Contract(
+    contractInfo[1],
+    contractInfo[0],
+    provider
+  );
+  await processing(contract, outputPath);
 }
 
 main()
