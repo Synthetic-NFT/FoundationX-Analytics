@@ -5,8 +5,8 @@ import { BigNumber, ethers } from "ethers";
 
 const fs = require("fs");
 
-const PAGE_SIZE = 200;
-const N_RETRY = 100;
+const PAGE_SIZE = 1000;
+const N_RETRY = 2;
 const SLEEP_TIME = 10; // s
 
 const contractInfos = new Map<string, [string, string]>([
@@ -57,18 +57,20 @@ const tokenInfoByIndex = async (
   return { tokenId: tokenId, tokenURI: tokenURI };
 };
 
-const processing = async (contract: ethers.Contract, outputPath: string) => {
+const processing = async (
+  contract: ethers.Contract,
+  startPage: BigNumber,
+  outputPath: string
+) => {
   const totalSupply = await contract.totalSupply();
   console.log("Total supply", totalSupply.toString());
 
-  try {
+  if (startPage.eq(BigNumber.from(0))) {
     fs.writeFileSync(outputPath, "");
-  } catch (err) {
-    console.error(err);
   }
 
   for (
-    let page = BigNumber.from(0);
+    let page = startPage;
     page.lt(totalSupply);
     page = page.add(BigNumber.from(PAGE_SIZE))
   ) {
@@ -79,6 +81,7 @@ const processing = async (contract: ethers.Contract, outputPath: string) => {
       i.lt(page.add(PAGE_SIZE));
       i = i.add(BigNumber.from(1))
     ) {
+      if (i.gte(totalSupply)) break;
       requests.push(tokenInfoByIndex(contract, i));
     }
 
@@ -115,7 +118,8 @@ async function main() {
   // @ts-ignore
   const args = process.argv.slice(2);
   const token = args[0];
-  const outputPath = args[1];
+  const startPage = BigNumber.from(args[1]);
+  const outputPath = args[2];
   // @ts-ignore
   const contractInfo: [string, string] = contractInfos.get(token);
   const contract = new ethers.Contract(
@@ -123,7 +127,7 @@ async function main() {
     contractInfo[0],
     provider
   );
-  await processing(contract, outputPath);
+  await processing(contract, startPage, outputPath);
 }
 
 main()
