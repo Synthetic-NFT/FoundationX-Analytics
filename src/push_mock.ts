@@ -17,17 +17,17 @@ type ContractInfo = {
 const contractInfos: Array<ContractInfo> = [
   {
     name: "BoredApeYachtClub",
-    address: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+    address: "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
     uriPath: "NFTs/BoredApeYachtClub.txt",
   },
   {
     name: "MutantApeYachtClub",
-    address: "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
+    address: "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
     uriPath: "NFTs/MutantApeYachtClub.txt",
   },
   {
     name: "Otherdeed",
-    address: "0x7a2088a1bFc9d81c55368AE168C2C02570cB814F",
+    address: "0x4A679253410272dd5232B3Ff7cF5dbB88f295319",
     uriPath: "NFTs/Otherdeed.txt",
   },
 ];
